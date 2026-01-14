@@ -1,0 +1,15 @@
+[project]
+name = "img-p"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "pillow>=12.1.0",
+    "pytest>=8.0.0",
+    "pytesseract>=0.3.10",
+    "ruff>=0.14.11",
+]
+
+[tool.pytest.ini_options]
+pythonpath = ["src/image-service"]
