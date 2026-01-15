@@ -2,10 +2,11 @@ import base64
 import io
 import pytesseract
 from typing import Optional
-
+from src.image_service.app.processors.celery_app import celery_app
 from PIL import Image, ImageFilter
 
 
+@celery_app.task(bind=True)
 def process_image_task(
     self, image_data_b64: str, operations: dict[str, any]
 ) -> Optional[Image.Image]:
@@ -55,7 +56,7 @@ def process_image_task(
         ocr_text: Optional[str] = None
         if operations.get("ocr", False):
             # Convert to RGB just in case
-            ocr_text= pytesseract.image_to_string(img)
+            ocr_text = pytesseract.image_to_string(img)
 
         # Encode back to base64 for return
 

@@ -1,0 +1,27 @@
+services:
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6381:6379"
+  image_service:
+    build:
+      context: ..
+      dockerfile: src/image_service/Dockerfile
+    working_dir: /app
+    command: uvicorn src.image_service.app.main:app --host 0.0.0.0 --port 8001
+    ports:
+      - "8001:8001"
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+    depends_on:
+      - redis
+  celery-worker:
+    build:
+      context: ..
+      dockerfile: src/image_service/Dockerfile
+    working_dir: /app
+    command: celery -A src.image_service.app.tasks worker --loglevel=info
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+    depends_on:
+      - redis
