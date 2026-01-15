@@ -1,27 +1,206 @@
 services:
   redis:
     image: redis:7-alpine
+    container_name: img-p-redis-dev
+    restart: unless-stopped
     ports:
       - "6381:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - img-p-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
   image_service:
     build:
       context: ..
       dockerfile: src/image_service/Dockerfile
+      target: development
+    container_name: img-p-image-service-dev
+    restart: unless-stopped
     working_dir: /app
-    command: uvicorn src.image_service.app.main:app --host 0.0.0.0 --port 8001
     ports:
       - "8001:8001"
     environment:
-      - REDIS_URL=redis://redis:6379/0
+      - REDIS_URL=${REDIS_URL:-redis://redis:6379/0}
+      - ENVIRONMENT=development
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+    env_file:
+      - ../.env
     depends_on:
-      - redis
+      redis:
+        condition: service_healthy
+    networks:
+      - img-p-network
+    volumes:
+      - ../src:/app/src:ro
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+
   celery-worker:
     build:
       context: ..
       dockerfile: src/image_service/Dockerfile
+      target: development
+    container_name: img-p-celery-worker-dev
+    restart: unless-stopped
     working_dir: /app
     command: celery -A src.image_service.app.tasks worker --loglevel=info
     environment:
-      - REDIS_URL=redis://redis:6379/0
+      - REDIS_URL=${REDIS_URL:-redis://redis:6379/0}
+      - ENVIRONMENT=development
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+    env_file:
+      - ../.env
     depends_on:
-      - redis
+      redis:
+        condition: service_healthy
+    networks:
+      - img-p-network
+    volumes:
+      - ../src:/app/src:ro
+    healthcheck:
+      test: ["CMD", "celery", "-A", "src.image_service.app.tasks", "inspect", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+
+  flower:
+    build:
+      context: ..
+      dockerfile: src/image_service/Dockerfile
+      target: development
+    container_name: img-p-flower-dev
+    restart: unless-stopped
+    working_dir: /app
+    command: celery -A src.image_service.app.tasks flower --port=5555
+    ports:
+      - "5555:5555"
+    environment:
+      - REDIS_URL=${REDIS_URL:-redis://redis:6379/0}
+      - ENVIRONMENT=development
+      - PYTHONPATH=/app
+    env_file:
+      - ../.env
+    depends_on:
+      redis:
+        condition: service_healthy
+      celery-worker:
+        condition: service_healthy
+    networks:
+      - img-p-network
+    volumes:
+      - ../src:/app/src:ro
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:5555/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+
+  gateway:
+    build:
+      context: ..
+      dockerfile: src/gateway/Dockerfile
+      target: development
+    container_name: img-p-gateway-dev
+    restart: unless-stopped
+    working_dir: /app
+    ports:
+      - "8080:8000"
+    environment:
+      - IMAGE_SERVICE_URL=${IMAGE_SERVICE_URL:-http://image_service:8001}
+      - REDIS_URL=${REDIS_URL:-redis://redis:6379/0}
+      - ENVIRONMENT=development
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+    env_file:
+      - ../.env
+    depends_on:
+      image_service:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - img-p-network
+    volumes:
+      - ../src:/app/src:ro
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+
+volumes:
+  redis_data:
+    driver: local
+
+networks:
+  img-p-network:
+    driver: bridge

@@ -10,6 +10,11 @@ import base64
 app = FastAPI(title="Image Processing Service")
 
 
+@app.get("/health")
+async def health() -> dict[str, str]:
+    return {"status": "healthy"}
+
+
 @app.post("/process")
 async def enqueue_image(
     file: UploadFile = File(...), operations: Json = Form(...)

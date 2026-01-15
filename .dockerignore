@@ -1,19 +1,28 @@
 # Ignore virtual environment
 .venv/
 src/.venv/
+.venv/
+env/
 
 # Ignore Python cache
 __pycache__/
 *.pyc
 *.pyo
 *.pyd
+.Python
 
 # Ignore IDE/editor directories
 .vscode/
 .idea/
+*.swp
+*.swo
+*~
 
 # Ignore test cache
 .pytest_cache/
+.coverage
+.tox/
+htmlcov/
 
 # Ignore ruff cache
 .ruff_cache/
@@ -22,3 +31,44 @@ __pycache__/
 dist/
 build/
 *.egg-info/
+*.egg
+
+# Ignore Git files
+.git/
+.gitignore
+.gitattributes
+.gitmodules
+
+# Ignore documentation
+*.md
+docs/
+LICENSE
+CHANGELOG
+
+# Ignore environment files
+.env
+.env.*
+!.env.example
+
+# Ignore test files
+tests/
+test/
+*_test.py
+test_*.py
+
+# Ignore OS-specific files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Ignore CI/CD files
+.github/
+.gitlab-ci.yml
+.travis.yml
+Jenkinsfile
+azure-pipelines.yml
+
+# Ignore Docker files (when building)
+Dockerfile*
+docker-compose*.yml
+.dockerignore
